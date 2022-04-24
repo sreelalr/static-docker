@@ -1,23 +1,23 @@
-node {
-      def app
-      stage('Clone repository') {
+pipeline {
 
-            checkout scm
-      }
-      stage('Build image') {
+  stages {
+    stage('Clone repository') {
 
-            app = docker.build("sreelalrp/mysite")
-       }
-      stage('Test image') {
-            app.inside {
+          checkout scm
+    }
 
-             sh 'echo "Tests passed"'
-            }
+    stage('Building image') {
+      steps{
+        script {
+          dockerImage = docker.build mysite
         }
-       stage('Push image') {
+      }
+    }
+    stage('Push image') {
                                                   docker.withRegistry('https://registry.hub.docker.com', 'dockerhub') {
        app.push("${env.BUILD_NUMBER}")
        app.push("latest")
-              }
-           }
-        }
+    }
+
+  }
+}
