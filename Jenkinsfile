@@ -1,35 +1,36 @@
-pipeline {
-  agent{
-    node { label 'slavefordocker'}
-  }
-  environment {
-    DOCKERHUB_CREDENTIALS= credentials('dockerhub')
-  }
-  stages {
-    stage("Git Checkout"){
-      checkout scm
+node {
+    def app
+
+    stage('Clone repository') {
+        /* Let's make sure we have the repository cloned to our workspace */
+
+        checkout scm
     }
-    stage('Build Docker Image') {
-      steps{
-	sh 'sudo docker build -t sreelalrp/mysite:$BUILD_NUMBER .'
-        echo 'Build Image Completed'
-      }
+
+    stage('Build image') {
+        /* This builds the actual image; synonymous to
+         * docker build on the command line */
+
+        app = docker.build("sreelalrp/mysite")
     }
-    stage('Login to Docker Hub') {
-      steps{
-	sh 'echo $DOCKERHUB_CREDENTIALS_PSW | sudo docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-	echo 'Login Completed'
-      }
+
+    stage('Test image') {
+        /* Ideally, we would run a test framework against our image.
+         * For this example, we're using a Volkswagen-type approach ;-) */
+
+        app.inside {
+            sh 'echo "Tests passed"'
+        }
     }
-    stage('Push Image to Docker Hub') {
-      steps{
-	sh 'sudo docker push sreelalrp/mysite:$BUILD_NUMBER'                 echo 'Push Image Completed'       
-      }
+
+    stage('Push image') {
+        /* Finally, we'll push the image with two tags:
+         * First, the incremental build number from Jenkins
+         * Second, the 'latest' tag.
+         * Pushing multiple tags is cheap, as all the layers are reused. */
+        docker.withRegistry('https://registry.hub.docker.com', 'dockerhub') {
+            app.push("${env.BUILD_NUMBER}")
+            app.push("latest")
+        }
     }
-  } //stages
-  post{
-    always {
-      sh 'docker logout'
-    }
-  }
-} //pipeline
+}
