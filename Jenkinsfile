@@ -1,23 +1,35 @@
 pipeline {
-
+  agent{
+    node { label 'slavefordocker'}
+  }
+  environment {
+    DOCKERHUB_CREDENTIALS= credentials('dockerhub')
+  }
   stages {
-    stage('Clone repository') {
-
-          checkout scm
+    stage("Git Checkout"){
+      checkout scm
     }
-
-    stage('Building image') {
+    stage('Build Docker Image') {
       steps{
-        script {
-          dockerImage = docker.build mysite
-        }
+	sh 'sudo docker build -t sreelalrp/mysite:$BUILD_NUMBER .'
+        echo 'Build Image Completed'
       }
     }
-    stage('Push image') {
-                                                  docker.withRegistry('https://registry.hub.docker.com', 'dockerhub') {
-       app.push("${env.BUILD_NUMBER}")
-       app.push("latest")
+    stage('Login to Docker Hub') {
+      steps{
+	sh 'echo $DOCKERHUB_CREDENTIALS_PSW | sudo docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+	echo 'Login Completed'
+      }
     }
-
+    stage('Push Image to Docker Hub') {
+      steps{
+	sh 'sudo docker push sreelalrp/mysite:$BUILD_NUMBER'                 echo 'Push Image Completed'       
+      }
+    }
+  } //stages
+  post{
+    always {
+      sh 'docker logout'
+    }
   }
-}
+} //pipeline
